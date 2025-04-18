@@ -5,11 +5,18 @@ Werkzeug Documentation:  https://werkzeug.palletsprojects.com/
 This file creates your application.
 """
 
-from app import app
+from app import app,db
 from flask import render_template, request, jsonify, send_file
 import os
+from app.models import Movies, ArticlesSchema
+from app.forms import MovieForm
+from flask_wtf.csrf import CSRFProtect, CSRFError
+from werkzeug.utils import secure_filename
+from flask_wtf.csrf import generate_csrf
+from flask import send_from_directory
 
 
+# csrf = CSRFProtect(app)
 ###
 # Routing for your application.
 ###
@@ -18,6 +25,58 @@ import os
 def index():
     return jsonify(message="This is the beginning of our API")
 
+@app.route('/api/v1/csrf-token', methods=['GET'])
+def get_csrf():
+ return jsonify({'csrf_token': generate_csrf()}) 
+
+@app.route('/api/v1/movies', methods=['GET'])
+def movies():
+    movies = Movies.query.all()
+    result = []
+    for movie in movies:
+        result.append({"id": movie.id, "title": movie.title, "description": movie.description, "poster": movie.poster})
+    return jsonify(result)
+    # return jsonify(ArticlesSchema(many=True).dump(movies))
+
+@app.route('/api/v1/posters/<filename>')
+def get_poster(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/api/v1/movies', methods=['POST'])
+# @csrf.exempt
+def add_movie():
+    ## using WTF
+    form = MovieForm()
+    if form.validate():
+        title = form.title.data
+        description = form.description.data
+        poster = form.poster.data
+        
+        # save poster to uploads folder and getting the filename for database purposes
+        filename = secure_filename(poster.filename)
+        poster.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        movie = Movies(title=title, description=description, poster=filename)
+
+        db.session.add(movie)
+        db.session.commit()
+        return jsonify({"message": "Movie Successfully added", "title": movie.title, "poster": movie.poster, "description": movie.description})
+    else:
+        ## using API endpoint
+        try:
+            title = request.json['title']
+            description = request.json['description']
+            poster = request.json['poster']
+            movie = Movies(title=title, description=description,poster = poster)
+
+            db.session.add(movie)
+            db.session.commit()
+            return jsonify({"message": "Movie Successfully added 2", "title": movie.title, "poster": movie.poster, "description": movie.description})
+        
+        except Exception as e: # failure on both enpoint and form validation
+            
+            return jsonify({'errors': form_errors(form)}), 400
+    return jsonify(form_errors(form))
+    
 
 ###
 # The functions below should be applicable to all Flask apps.

@@ -22,6 +22,13 @@
             <li class="nav-item">
               <RouterLink class="nav-link" to="/about">About</RouterLink>
             </li>
+            <!-- Add the router link for the add movie form page -->
+            <li class="nav-item">
+              <RouterLink class="nav-link" to="/movies/create">Add Movie</RouterLink>
+            </li>
+            <li class="nav-item">
+              <RouterLink class="nav-link" to="/movies">Movies</RouterLink>
+            </li>
           </ul>
         </div>
       </div>
